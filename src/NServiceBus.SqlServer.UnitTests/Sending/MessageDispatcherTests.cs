@@ -76,7 +76,7 @@
                 return Task.FromResult(0);
             }
 
-            public Task DispatchAsIsolated(HashSet<MessageWithAddress> operations)
+            public Task DispatchAsIsolated(HashSet<MessageWithAddress> operations, TransportTransaction transportTransaction)
             {
                 DispatchedMessageIds.AddRange(operations.Select(x => x.Message.MessageId));
                 return Task.FromResult(0);

@@ -31,6 +31,7 @@ namespace NServiceBus.Transport.SQLServer
 
                 var transportTransaction = new TransportTransaction();
                 transportTransaction.Set(connection);
+                transportTransaction.Set(TransportTransactionMode.None);
 
                 var message = readResult.Message;
 

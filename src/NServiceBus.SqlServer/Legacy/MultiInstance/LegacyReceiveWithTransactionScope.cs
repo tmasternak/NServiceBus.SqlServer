@@ -76,9 +76,9 @@
         {
             var transportTransaction = new TransportTransaction();
 
-            //those resources are meant to be used by anyone except message dispatcher e.g. persister
             transportTransaction.Set(connection);
             transportTransaction.Set(Transaction.Current);
+            transportTransaction.Set(TransportTransactionMode.TransactionScope);
 
             return transportTransaction;
         }

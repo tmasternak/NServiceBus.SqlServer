@@ -9,11 +9,11 @@
 
     class ReceiveWithNativeTransaction : ReceiveStrategy
     {
-        public ReceiveWithNativeTransaction(TransactionOptions transactionOptions, SqlConnectionFactory connectionFactory, FailureInfoStorage failureInfoStorage, bool transactionForReceiveOnly = false)
+        public ReceiveWithNativeTransaction(TransactionOptions transactionOptions, SqlConnectionFactory connectionFactory, FailureInfoStorage failureInfoStorage, TransportTransactionMode transactionMode)
         {
             this.connectionFactory = connectionFactory;
             this.failureInfoStorage = failureInfoStorage;
-            this.transactionForReceiveOnly = transactionForReceiveOnly;
+            this.transactionMode = transactionMode;
 
             isolationLevel = IsolationLevelMapper.Map(transactionOptions.IsolationLevel);
         }
@@ -80,15 +80,9 @@
         {
             var transportTransaction = new TransportTransaction();
 
-            //those resources are meant to be used by anyone except message dispatcher e.g. persister
             transportTransaction.Set(connection);
             transportTransaction.Set(transaction);
-
-            if (transactionForReceiveOnly)
-            {
-                //this indicates to MessageDispatcher that it should not reuse connection or transaction for sends
-                transportTransaction.Set(ReceiveOnlyTransactionMode, true);
-            }
+            transportTransaction.Set(transactionMode);
 
             return transportTransaction;
         }
@@ -121,7 +115,7 @@
         IsolationLevel isolationLevel;
         SqlConnectionFactory connectionFactory;
         FailureInfoStorage failureInfoStorage;
-        bool transactionForReceiveOnly;
+        TransportTransactionMode transactionMode;
         internal static string ReceiveOnlyTransactionMode = "SqlTransport.ReceiveOnlyTransactionMode";
     }
 }

@@ -95,14 +95,9 @@ namespace NServiceBus.Transport.SQLServer
                 return new ReceiveWithTransactionScope(options, connectionFactory, new FailureInfoStorage(10000));
             }
 
-            if (minimumConsistencyGuarantee == TransportTransactionMode.SendsAtomicWithReceive)
+            if (minimumConsistencyGuarantee == TransportTransactionMode.SendsAtomicWithReceive || minimumConsistencyGuarantee == TransportTransactionMode.ReceiveOnly)
             {
-                return new ReceiveWithNativeTransaction(options, connectionFactory, new FailureInfoStorage(10000));
-            }
-
-            if (minimumConsistencyGuarantee == TransportTransactionMode.ReceiveOnly)
-            {
-                return new ReceiveWithNativeTransaction(options, connectionFactory, new FailureInfoStorage(10000), transactionForReceiveOnly: true);
+                return new ReceiveWithNativeTransaction(options, connectionFactory, new FailureInfoStorage(10000), minimumConsistencyGuarantee);
             }
 
             return new ReceiveWithNoTransaction(connectionFactory);

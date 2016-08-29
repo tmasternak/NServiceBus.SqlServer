@@ -15,19 +15,32 @@ namespace NServiceBus.Transport.SQLServer
             this.connectionFactory = connectionFactory;
         }
 
-        public async Task DispatchAsIsolated(HashSet<MessageWithAddress> operations)
+        public async Task DispatchAsIsolated(HashSet<MessageWithAddress> operations, TransportTransaction transportTransaction)
         {
             if (operations.Count == 0)
             {
                 return;
             }
-            using (var scope = new TransactionScope(TransactionScopeOption.RequiresNew, TransactionScopeAsyncFlowOption.Enabled))
+            using (var scope = new TransactionScope(GetScopeOption(transportTransaction), TransactionScopeAsyncFlowOption.Enabled))
             using (var connection = await connectionFactory.OpenNewConnection().ConfigureAwait(false))
             {
                 await Send(operations, connection, null).ConfigureAwait(false);
 
                 scope.Complete();
             }
+        }
+
+        static TransactionScopeOption GetScopeOption(TransportTransaction transportTransaction)
+        {
+            TransportTransactionMode transactionMode;
+            if (!transportTransaction.TryGet(out transactionMode))
+            {
+                return TransactionScopeOption.Suppress;
+            }
+            var scopeOption = transactionMode >= TransportTransactionMode.SendsAtomicWithReceive
+                ? TransactionScopeOption.RequiresNew
+                : TransactionScopeOption.Suppress;
+            return scopeOption;
         }
 
         public async Task DispatchAsNonIsolated(HashSet<MessageWithAddress> operations, TransportTransaction transportTransaction)
@@ -37,13 +50,24 @@ namespace NServiceBus.Transport.SQLServer
                 return;
             }
 
-            if (InReceiveWithNoTransactionMode(transportTransaction) || InReceiveOnlyTransportTransactionMode(transportTransaction))
+            if (UseReceiveTransaction(transportTransaction))
+            {
+                await DispatchUsingReceiveTransaction(transportTransaction, operations).ConfigureAwait(false);
+            }
+            else
             {
                 await DispatchOperationsWithNewConnectionAndTransaction(operations).ConfigureAwait(false);
-                return;
             }
+        }
 
-            await DispatchUsingReceiveTransaction(transportTransaction, operations).ConfigureAwait(false);
+        static bool UseReceiveTransaction(TransportTransaction transportTransaction)
+        {
+            TransportTransactionMode transactionMode;
+            if (!transportTransaction.TryGet(out transactionMode))
+            {
+                return false;
+            }
+            return transactionMode >= TransportTransactionMode.SendsAtomicWithReceive;
         }
 
 
@@ -95,23 +119,6 @@ namespace NServiceBus.Transport.SQLServer
                 var queue = new TableBasedQueue(operation.Address);
                 await queue.Send(operation.Message, connection, transaction).ConfigureAwait(false);
             }
-        }
-
-        static bool InReceiveWithNoTransactionMode(TransportTransaction transportTransaction)
-        {
-            SqlTransaction nativeTransaction;
-            transportTransaction.TryGet(out nativeTransaction);
-
-            Transaction ambientTransaction;
-            transportTransaction.TryGet(out ambientTransaction);
-
-            return nativeTransaction == null && ambientTransaction == null;
-        }
-
-        static bool InReceiveOnlyTransportTransactionMode(TransportTransaction transportTransaction)
-        {
-            bool inReceiveMode;
-            return transportTransaction.TryGet(ReceiveWithNativeTransaction.ReceiveOnlyTransactionMode, out inReceiveMode);
         }
     }
 }

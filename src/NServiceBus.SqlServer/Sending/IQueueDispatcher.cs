@@ -7,6 +7,6 @@ namespace NServiceBus.Transport.SQLServer
     {
         Task DispatchAsNonIsolated(HashSet<MessageWithAddress> operations, TransportTransaction transportTransaction);
 
-        Task DispatchAsIsolated(HashSet<MessageWithAddress> operations);
+        Task DispatchAsIsolated(HashSet<MessageWithAddress> operations, TransportTransaction transportTransaction);
     }
 }
